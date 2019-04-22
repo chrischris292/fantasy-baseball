@@ -1,58 +1,35 @@
 from pprint import pprint
 from espn_api import EspnApi
+from fangraphs_api import FangraphsApi
 import sys
 import pickle
+import requests
 
 from lineup_settings import LineupSettings
 
+#
+# def password(user):
+#     with open(user + "_pass.txt", "w+") as pass_file:
+#         return pass_file.read()
+#
+#
+# username = sys.argv[1]
+# password = password(username)
+#
+# api = EspnApi(username, password)
+#
+# league = api.league()
+# settings = api.scoring_settings()
+#
+# points = league.points(settings)
+# for (team_id, points) in points.items():
+#     print("{}\t{}\n".format(team_id, points))
 
-def password(user):
-    with open(user + "_pass.txt", "w+") as pass_file:
-        return pass_file.read()
-
-
-username = sys.argv[1]
-password = password(username)
-
-api = EspnApi(username, password)
-
-lineup = api.lineup()
-
-
-def print_lineup(l):
-    for slot, players in l.player_dict.items():
-        print(slot)
-        for p in players:
-            print(p)
-
-
-settings = api.lineup_settings()
-# lineup = pickle.load(open("lineup.p", "rb"))
-# settings = LineupSettings(pickle.load(open("settings.p", "rb")).slot_counts)  # for casting str->str to int->int
-
-
-possibles = lineup.possible_lineups(settings)
-# lineup_dict = dict()
-# for poss_lineup in possibles:
-#     benched = poss_lineup.benched()
-#     lineups_same_benched = lineup_dict.get(benched, list())
-#     lineups_same_benched.append(poss_lineup)
-#     lineup_dict[benched] = lineups_same_benched
-
-# print("{} different configurations of benched players".format(len(lineup_dict)))
-
-
-def low_transition_lineup(cur, possible_lineups):
-    for l in possible_lineups:
-        if len(cur.transitions(l)) == 3:
-            return l
-
-rand_lineup = low_transition_lineup(lineup, possibles)
-transitions = lineup.transitions(rand_lineup)
-for t in transitions:
-    print("{} {} {}".format(t[0], t[1], t[2]))
-
-pprint(api.set_lineup(rand_lineup))
+proj = FangraphsApi().pitcher_projections()
+print(proj.items())
+name_and_average = list(map(lambda n: (n[0], n[1].whip()), proj.items()))
+for name, stats in sorted(name_and_average, key=lambda na: na[1]):
+    print("{}\t{}\n".format(name, stats))
 
 """
 GOAL:
@@ -75,21 +52,54 @@ GOAL:
         possibleSlots: [Num, ...]
     }
     
-    LineupSettings = [Slot, ...]
-    
-    Slot = {
-        slot_id: ...
-        stats_count?: ...
+    LineupSettings = {
+        slot_id: count,
+        ...
     }
     
     Lineup = {
-        0: Player,
-        1: Player,
+        0: [Player, ...]
+        1: [Player, ...]
         ...
     }
         (Lineup LineupSettings? Projections) -> Statistics
     
     Projections = { Player: Statistics }
+    
+    ScoringSettings: [(id, reverse?), ...]
+    
+    Statistics: {
+        id: value,
+        ...
+    }
+    
+    League: [Team, ...]
+    
+    Team: {
+        id: Int,
+        lineup: Lineup,
+        year_stats: Statistics,
+    }
+    
+    Now, calculate optimal lineup:
+    
+    Given:
+    * League
+    * Team Id
+    * Projections
+    * Scoring Settings
+    * set of starters
+    
+    Determine:
+    * point value of those starters
+    
+    Approach:
+    - calculate all others' stats based on curr lineup, projections
+    - save my curr year stats
+    - calc my stats with daily projections
+    - for each stat, calc my % difference vs. all others ... ? sum to total points
+    
+    
     
 
 """
